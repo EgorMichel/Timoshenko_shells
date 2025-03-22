@@ -4,22 +4,27 @@ import numpy as np
 E = 210 * 1e9 # Pascal
 v = 0.3
 p = 7850
-h = 0.01
+h = 0.0001
 D = E * h**3 / (12 * (1 - v**2))
 
-Lx = 10
-Ly = 10
+Lx = 1
+Ly = 1
 Nx = 200
 Ny = 200
 
-l = E * v / ((1 + v) * (1 - 2 * v))
-G = E / (2 * (1 + v))
-
-print("G = ", G)
-print("l = ", l)
+# l = E * v / ((1 + v) * (1 - 2 * v))
+# G = E / (2 * (1 + v))
+#
+# print("G = ", G)
+# print("l = ", l)
 
 dx = Lx / Nx
+# I = 0.1
 I = p * h * dx**4 / 4
+
+print("I calc = ", p * h * dx**4 / 4)
+print("I      = ", I)
+print("D      = ", D)
 
 Ax = -np.array([
     [0                   , 0                , 0     , 0              , 1 / p, 0, 0    , 0    , 0, 0     ],
