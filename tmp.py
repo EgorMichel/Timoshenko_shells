@@ -1,127 +1,203 @@
 import numpy as np
-from Render import create_vts_snapshot_vtk
-
-# Constants
-E = 200 * 1e9 # Pascal
-v = 0.25
-p = 7800
-h = 0.01
-D = E * h**3 / (12 * (1 - v**2))
-
-Lx = 10
-Ly = 10
-Nx = 100
-Ny = 100
-
-x = np.linspace(-Lx/2, Lx/2, Nx)
-y = np.linspace(-Ly/2, Ly/2, Ny)
-
-dx = Lx / Nx
-dy = Ly / Ny
-
-I = p * h * dx**4 / 4
-
-print(I)
-
-Ax = np.array([
-    [0, 0, 0, 0, 1 / p, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 1 / p, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 1 / I, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, -1 / I],
-    [E / (1 - v ** 2), 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [E * v / (1 - v ** 2), 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, E / (4 * (1 + v)), 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, -D, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, -D * v, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, D / 2 * (1 - v), 0, 0, 0, 0, 0, 0]
-])
-
-Ay = np.array([
-    [0, 0, 0, 0, 0, 0, 1 / p, 0, 0, 0],
-    [0, 0, 0, 0, 0, 1 / p, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1 / I],
-    [0, 0, 0, 0, 0, 0, 0, 0, 1 / I, 0],
-    [0, E * v / (1 - v ** 2), 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, E / (1 - v ** 2), 0, 0, 0, 0, 0, 0, 0, 0],
-    [E / (4 * (1 + v)), 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, -D * v, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, -D, 0, 0, 0, 0, 0, 0],
-    [0, 0, D / 2 * (1 - v), 0, 0, 0, 0, 0, 0, 0]
-])
+from numba import njit
 
 
+# @njit
+def Newton_interpolation_vectorized(X, Y, x, order=1):
+    """
+    Векторизованная интерполяция Ньютона для равномерной сетки с JIT-компиляцией.
 
-mesh = np.zeros((Nx, Ny, 10))
+    Аргументы:
+    X - отсортированный по возрастанию массив координат точек.
+    Расстояния между всеми точками равны, то есть сетка регулярная.
+    Y - массив значений функции в точках, координаты которых указаны в X.
+    Координаты и значения соответствуют друг другу по индексу, т.е значение в точке X[i] равно Y[i].
+    x - numpy массив координат, в которых нужно вычислить значения функции,
+    используя интерполяционные полиномы Ньютона.
+    order - порядок полинома Ньютона.
 
-eig_val_x, eig_vec_x = np.linalg.eig(Ax)
-eig_val_y, eig_vec_y = np.linalg.eig(Ay)
+    Возвращает:
+    numpy массив интерполированных значений в точках x.
+    """
+
+    n = len(X)
+    h = X[1] - X[0]  # Шаг сетки
+
+    # Векторизованный результат
+    y_interp = np.zeros_like(x, dtype=np.float64)  # Инициализация массива результатов
+
+    for i in range(x.shape[0]):
+        xi = x[i]
+        # Находим индекс ближайшего узла слева от xi
+        if xi < X[0]:
+            index = 0
+        elif xi > X[-1]:
+            index = n - 1
+        else:
+            index = int((xi - X[0]) / h)
+
+        # Определяем индексы узлов, которые будут использоваться для интерполяции
+        start_index = max(0, index - order + 1)
+        end_index = min(n - 1, index + order - (index - start_index))
+
+        # Дополнительная корректировка индексов для достижения нужного порядка
+        if end_index - start_index < order:
+            if start_index == 0:
+                end_index = min(n - 1, order)
+            else:
+                start_index = max(0, n - 1 - order)
+                end_index = n - 1
+
+        selected_indices = np.arange(start_index, end_index + 1)
+
+        # Вычисляем разделенные разности
+        divided_differences = np.copy(Y[selected_indices])
+
+        for k in range(1, order + 1):
+            for j in range(order, k - 1, -1):
+                divided_differences[j] = (divided_differences[j] - divided_differences[j - 1]) / (
+                            X[selected_indices[j]] - X[selected_indices[j - k]])
+
+        # Вычисляем интерполяционный полином Ньютона
+        yi = divided_differences[0]
+        term = 1.0
+
+        for k in range(1, order + 1):
+            term *= (xi - X[selected_indices[k - 1]])
+            yi += divided_differences[k] * term
+
+        # Limiter
+        tmp = Y[selected_indices]
+        yi = np.clip(yi, np.min(tmp) if yi < 0 else None, np.max(tmp) if yi > 0 else None)
+        # if yi > 0:
+        #     m   = np.max(tmp)
+        #     if yi > m:
+        #         yi = m
+        #
+        # if yi < 0:
+        #     m   = np.min(tmp)
+        #     if yi < m:
+        #         yi = m
+
+
+        y_interp[i] = yi  # Сохраняем результат для текущего xi
+
+    return y_interp
+
+@njit
+def Newton_my(X, Y, x_all, order=3):
+
+    def one_point(x):
+        n = len(X)
+        h = X[1] - X[0]
+
+        # Находим индекс ближайшего узла слева от xi
+        if x < X[0]:
+            index = 0
+        elif x > X[-1]:
+            index = n - 1
+        else:
+            index = int((x - X[0]) / h)
+
+        start_index = max(0, index - order // 2)
+        end_index = min(n - 1, start_index + order)
+
+        indices = np.arange(start_index, end_index + 1)
+
+        divided_differences = np.copy(Y[indices])
+        diff_matrix = np.zeros((len(indices), len(indices)))
+        diff_matrix[:, 0] = np.copy(Y[indices])
+
+
+        for i in range(1, len(indices)):
+            diff_matrix[0:-i, i] = diff_matrix[1:len(indices) - i + 1, i - 1] - diff_matrix[0:len(indices) - i, i - 1]
+
+        divided_differences = np.copy(diff_matrix[0])
+
+        y = divided_differences[0]
+        q = (x - X[indices[0]]) / h
+
+        term = q
+        fact = 1.0
+        for i in range(1, len(divided_differences)):
+            fact *= i
+            y += term / fact * divided_differences[i]
+            q -= 1
+            term *= q
+
+        return y
+
+    return np.array([one_point(x_) for x_ in x_all])
+
+
+
+
+
+    # for i in range(len(divided_differences) - 1):
+    #     for j in range()
+
+
+import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
+import timeit
+
+# Пример данных
+F = lambda x_: np.sign(x_)
+X = np.linspace(-5, 5, 100)
+Y = F(X)
+x = np.linspace(-5, 5, 1000)
+y = F(x)
+
+
+# x = np.linspace(1.5, 2.0, 100)
+# y = np.array([Newton_my(X, Y, x_, order=3) for x_ in x])
 #
-c = np.sqrt(max(np.abs(eig_val_x)) ** 2 + max(np.abs(eig_val_y)) ** 2)
-dt = 1 / (c * np.sqrt(1/dx**2 + 1/dy**2))
+# plt.plot(x, y)
+# plt.show()
+# Интерполяция с использованием вашей функции
+y_newton = Newton_my(X, Y, x, order=3)
 
-print(dt)
+# y_newton = np.array([Newton_my(X, Y, x_, order=3) for x_ in x])
 
-steps = 100
+# Интерполяция с использованием scipy.interpolate.interp1d
+f_linear = interp1d(X, Y, kind='linear', fill_value="extrapolate")
+y_linear = f_linear(x)
 
-values = ["Vx", "Vy", "Wx", "Wy", "Nx", "Ny", "Nxy", "Mx", "My", "Mxy"]
-
-# mesh[0, 45:55, 3] = 0
-mesh[49:51, 49:51, 2] = 1
-mesh[49:51, 49:51, 0] = 1
-# mesh[0, 45:55, 9] = 0
-
-DATA = np.zeros((steps, Nx, Ny, 10))
-
-for _ in range(steps):
-    mesh_new = np.zeros_like(mesh)
-
-    y_part = (mesh[1:-1, 2:] - mesh[1:-1, :-2]) @ Ay
-    x_part = (mesh[2:, 1:-1] - mesh[:-2, 1:-1]) @ Ax
-    mesh_new[1:-1, 1:-1] = 0.25 * (
-            mesh[2:, 1:-1] + mesh[:-2, 1:-1] + mesh[1:-1, 2:] + mesh[1:-1, :-2]
-    ) - dt / (2 * dx) * x_part - dt / (2 * dy) * y_part
-
-    mesh_new[0, :]  = mesh_new[1, :]
-    mesh_new[-1, :] = mesh_new[-2, :]
-    mesh_new[:, 0]  = mesh_new[:, 1]
-    mesh_new[:, -1] = mesh_new[:, -2]
-
-    mesh = mesh_new.copy()
-    DATA[_] = np.copy(mesh)
+f_cubic = interp1d(X, Y, kind='cubic', fill_value="extrapolate")
+y_cubic = f_cubic(x)
 
 
-from matplotlib import pyplot as plt
-from matplotlib.animation import FuncAnimation
-import matplotlib.colors as mcolors
+# Визуализация результатов
+plt.figure(figsize=(10, 6))
+plt.plot(X, Y, 'o', label='Исходные точки')
+plt.plot(x, y_newton, label='Интерполяция Ньютона (order=3)')
+plt.plot(x, y_linear, label='Интерполяция Scipy Linear')
+plt.plot(x, y_cubic, label='Интерполяция Scipy Cubic')
+plt.xlabel('x')
+plt.ylabel('y')
+plt.title('Сравнение интерполяций')
+plt.legend()
+plt.grid(True)
 
 
-for val in range(len(values)):
-    fig, ax = plt.subplots()
-    board = max(abs(np.min(DATA[:, :, :, val])), abs(np.max(DATA[:, :, :, val])))
-    # img = ax.imshow(DATA[0, :, :, val], cmap='RdBu_r', origin='lower',
-    #            extent=[x.min(), x.max(), y.min(), y.max()], vmin=-board, vmax=board)
+# Визуализация разницы между методами
+plt.figure(figsize=(10, 6))
+# plt.plot(x, y_newton - y_linear, label='Разница: Ньютон - Linear')
+plt.plot(x, y_newton - y, label='Разница: Ньютон')
+plt.plot(x, y_cubic - y, label='Разница: Scipy')
+plt.xlabel('x')
+plt.ylabel('Разница')
+plt.title('Разница между интерполяциями Ньютона и Scipy')
+plt.legend()
+plt.grid(True)
 
-    linthresh = 0.01
-    norm = mcolors.SymLogNorm(linthresh=linthresh, linscale=1, vmin=-board, vmax=board)
-
-    img = ax.imshow(DATA[0, :, :, val], cmap='RdBu_r', origin='lower',
-                    extent=[x.min(), x.max(), y.min(), y.max()],
-                    norm=norm)
-
-    fig.colorbar(img, label='Ð—Ð½Ð°Ñ‡ÐµÐ½Ð¸Ðµ' + values[val])
-    ax.set_title(values[val])
+plt.figure(figsize=(10, 6))
+plt.plot(x, np.abs(y_cubic - y) - np.abs(y_newton - y), label='Error Scipy - Error Newton')
+plt.xlabel('x')
+plt.ylabel('Разница')
+plt.title('Разница между интерполяциями Ньютона и Scipy')
+plt.legend()
+plt.grid(True)
 
 
-    def update(frame):
-        img.set_data(DATA[frame, :, :, val])
-        return [img]
-
-    ani = FuncAnimation(
-        fig=fig,
-        func=update,
-        frames=DATA.shape[0],
-        interval=50,
-        blit=True
-    )
-
-    ani.save(str(val) + "_" + values[val] + ".gif", fps=15)
+plt.show()
