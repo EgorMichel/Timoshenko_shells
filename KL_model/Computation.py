@@ -109,16 +109,6 @@ def Newton_my(X, Y, x_all, order=1, limiter=False):
 
     return np.array([one_point(x_) for x_ in x_all])
 
-# @njit
-# def interpolate_with_shift(Values, Coords, shift, order=1):
-#
-#     interpolated_values = np.zeros_like(Values)
-#     for i in range(Values.shape[0]):
-#         shifted_coords = Coords + shift
-#         interpolated_values[i, :] = Newton_interpolation_vectorized(Coords, Values[i, :], shifted_coords, order)
-#
-#     return interpolated_values
-
 
 def PerformOnePart_my(data, E, L, L_inv, x, y, dt, dir, order=1, limiter=False):
     nx, ny, n_vars = data.shape
@@ -144,33 +134,6 @@ def PerformOnePart_my(data, E, L, L_inv, x, y, dt, dir, order=1, limiter=False):
 
     return np.einsum('ij,klj->kli', L_inv, V_interpolated)
 
-def PerformOnePart(data, E, L, L_inv, x, y, dt, dir):
-    nx, ny, n_vars = data.shape
-    V = np.einsum('ij,klj->kli', L, data)
-    # V = np.transpose(np.matmul(L, np.transpose(data, (1, 2, 0))), (2, 0, 1))
-
-    V_interpolated = np.copy(V)
-    for i in range(n_vars):
-        Values = V[:, :, i]
-        shift  = E[i] * dt
-
-        if dir == 'X':
-            x_shifted = x - shift
-            for j in range(ny):
-                interp = RegularGridInterpolator((x,), Values[j, :], bounds_error=False, fill_value=0, method='cubic')
-                Values[j, :] = interp(x_shifted)
-
-        if dir == 'Y':
-            y_shifted = y - shift
-            for j in range(nx):
-                interp = RegularGridInterpolator((y,), Values[:, j], bounds_error=False, fill_value=0, method='cubic')
-                Values[:, j] = interp(y_shifted)
-
-        V_interpolated[:, :, i] = np.copy(Values)
-
-
-    return np.einsum('ij,klj->kli', L_inv, V_interpolated)
-
 
 def Compute_GHM(data, E1, L1, L1_inv, E2, L2, L2_inv, dt, x, y, order=1, limiter=False):
 
@@ -191,3 +154,24 @@ def Compute_GHM(data, E1, L1, L1_inv, E2, L2, L2_inv, dt, x, y, order=1, limiter
     mesh_new[:, -1] = mesh_new[:, -2]
 
     return mesh_new
+
+
+def Compute_Vz(Wx, Wy, dx, dy):
+    return (Wx * dx + Wy * dy) / 2
+
+
+def Compute_q(Mx, My, Mxy, dx, dy):
+    q = np.zeros_like(Mx)
+
+    d2Mx_dx2   = (Mx[2: , 1:-1] - 2 * Mx[1:-1, 1:-1] + Mx[ :-2, 1:-1]) / dx**2
+    d2My_dy2   = (My[1:-1, 2: ] - 2 * My[1:-1, 1:-1] + My[1:-1,  :-2]) / dy**2
+    d2Mxy_dxdy = (Mxy[2: , 2: ] - Mxy[2: ,  :-2] - Mxy[ :-2, 2: ] + Mxy[ :-2,  :-2]) / (4*dx*dy)
+
+    q[1:-1, 1:-1] = -(d2Mx_dx2 + d2My_dy2 - 2 * d2Mxy_dxdy)
+
+    q[0, :] = q[1, :]
+    q[-1, :] = q[-2, :]
+    q[:, 0] = q[:, 1]
+    q[:, -1] = q[:, -2]
+
+    return q

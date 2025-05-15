@@ -59,11 +59,12 @@ Ay = -np.array([
 cs = (E / (2 * (1 + v) * p))**0.5
 cp = (E * (1 - v) / ( (1 + v) * (1 - 2 * v) * p))**0.5
 
+
 print("Cp = ", cp)
 print("Cs = ", cs)
 
-# print((np.linalg.eig(Ax)[0]))
-# print((np.linalg.eig(Ay)[0]))
+print((np.linalg.eig(Ax)[0]))
+print((np.linalg.eig(Ay)[0]))
 
 # print(np.sum(Ax @ Ay - Ay @ Ax))
 
