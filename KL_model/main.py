@@ -13,8 +13,18 @@ dy = Ly / Ny
 
 # Initial conditions
 # values = ["Vx", "Vy", "Wx", "Wy", "Nx", "Ny", "Nxy", "Mx", "My", "Mxy"]
-mesh[99:101, 99:101, 0] = 100
-mesh[99:101, 99:101, 2] = 100
+
+R = 10
+A = 100
+t_ = np.linspace(0, 2 * np.pi, 100)
+
+points = np.array([[np.round(R * np.cos(t) + 100), np.round(R * np.sin(t) + 100)] for t in t_])
+velocities = np.array([[A * np.cos(t), A * np.sin(t)] for t in t_])
+
+for i in range(len(points)):
+    mesh[int(points[i, 0]), int(points[i, 1]), 0] = velocities[i, 0]
+    mesh[int(points[i, 0]), int(points[i, 1]), 1] = velocities[i, 1]
+
 # mesh[99, 100, 2] = 100
 # mesh[101, 100, 2] = -100
 # mesh[100, 99, 3] = 100
@@ -66,12 +76,12 @@ for i in range(0, steps):
         q = Compute_q(mesh[:, :, 7], mesh[:, :, 8], mesh[:, :, 9], dx, dy).flatten()
         M = data[:, 7:]
         N = data[:, 4:7]
-        create_vts_snapshot_vtk(nodes, V, W, q, M, N, (Nx, Ny, 1), j, "CXM_3_lim")
+        create_vts_snapshot_vtk(nodes, V, W, q, M, N, (Nx, Ny, 1), j, "L-F")
         j += 1
 
 
-    # mesh = Compute_Lax_Vend_step(mesh, Ay, Ax, dt, dx, dy, alpha=0.05)
-    mesh = Compute_GHM(mesh, E1, L1, L1_inv, E2, L2, L2_inv, dt, x, y, order=3, limiter=True)
+    mesh = Compute_Lax_Frid_step(mesh, Ay, Ax, dt, dx, dy, alpha=0.1)
+    # mesh = Compute_GHM(mesh, E1, L1, L1_inv, E2, L2, L2_inv, dt, x, y, order=3, limiter=True)
 
 t1 = time()
 

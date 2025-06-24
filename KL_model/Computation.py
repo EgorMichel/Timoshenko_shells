@@ -113,7 +113,6 @@ def Newton_my(X, Y, x_all, order=1, limiter=False):
 def PerformOnePart_my(data, E, L, L_inv, x, y, dt, dir, order=1, limiter=False):
     nx, ny, n_vars = data.shape
     V = np.einsum('ij,klj->kli', L, data)
-    # V = np.transpose(np.matmul(L, np.transpose(data, (1, 2, 0))), (2, 0, 1))
 
     V_interpolated = np.copy(V)
     for i in range(n_vars):
