@@ -2,12 +2,16 @@
 Solver for Timoshenko shell model.
 
 Install dependencies:
+
     pip install -r requirements.txt
 
 Run:
+
     python3 main.py
 
+
 Code:
+
     Initial conditions:
         In function initial_conditions at main.py.
         There are an example for circle conditions and commented examples.
