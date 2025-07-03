@@ -1,0 +1,6 @@
+# Python dependencies for Timoshenko_shells project
+numpy
+matplotlib
+scipy
+vtk
+numba

@@ -1,32 +1,23 @@
 import numpy as np
 
 # Constants
-E = 210 * 1e9 # Pascal
-v = 0.3
-p = 7800
-h = 1
-D = E * h**3 / (12 * (1 - v**2))
+E = 210 * 1e9 # Pa # Young's modulus
+v = 0.3 # Poisson's ratio
+p = 7800 # kg/m^3 # density
+h = 1 # m   # thickness
+D = E * h**3 / (12 * (1 - v**2)) # bending stiffness
 
-Lx = 10
-Ly = 10
-Nx = 200
-Ny = 200
+Lx = 10 # m
+Ly = 10 # m
+Nx = 200 # number of nodes in x direction
+Ny = 200 # number of nodes in y direction
 
-l = E * v / ((1 + v) * (1 - 2 * v))
-G = E / (2 * (1 + v))
+l = E * v / ((1 + v) * (1 - 2 * v)) # shear modulus
+G = E / (2 * (1 + v)) # shear modulus
 
-print("G = ", G)
-print("l = ", l)
 
-dx = Lx / Nx
-# I = 0.1
-I = p * h**3 / 12
-
-print("I calc = ", p * h * dx**4 / 4)
-print("I      = ", I)
-print("D      = ", D)
-
-# I = D
+dx = Lx / Nx # grid spacing in x direction
+I = p * h**3 / 12 # moment of inertia
 
 
 Ax = -np.array([
@@ -56,22 +47,5 @@ Ay = -np.array([
 ])
 
 
-cs = (E / (2 * (1 + v) * p))**0.5
-cp = (E * (1 - v) / ( (1 + v) * (1 - 2 * v) * p))**0.5
-
-
-print("Cp = ", cp)
-print("Cs = ", cs)
-
-print((np.linalg.eig(Ax)[0]))
-print((np.linalg.eig(Ay)[0]))
-
-# print(np.sum(Ax @ Ay - Ay @ Ax))
-
-
-# [   -0.            -0.          1084.38654064 -1084.38654064
-#   5421.93270321 -5421.93270321  2268.15717967 -2268.15717967
-#    907.26287187  -907.26287187]
-# [   -0.            -0.           907.26287187  -907.26287187
-#   2268.15717967 -2268.15717967  5421.93270321 -5421.93270321
-#   1084.38654064 -1084.38654064]
+cs = (E / (2 * (1 + v) * p))**0.5 # shear wave speed
+cp = (E * (1 - v) / ( (1 + v) * (1 - 2 * v) * p))**0.5 # compressional wave speed

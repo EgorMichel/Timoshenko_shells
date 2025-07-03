@@ -134,7 +134,7 @@ def PerformOnePart_my(data, E, L, L_inv, x, y, dt, dir, order=1, limiter=False):
     return np.einsum('ij,klj->kli', L_inv, V_interpolated)
 
 
-def Compute_GHM(data, E1, L1, L1_inv, E2, L2, L2_inv, dt, x, y, order=1, limiter=False):
+def Compute_CXM(data, E1, L1, L1_inv, E2, L2, L2_inv, dt, x, y, order=1, limiter=False):
 
     mesh_new = np.zeros_like(data)
 
