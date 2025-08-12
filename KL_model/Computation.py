@@ -121,13 +121,15 @@ def PerformOnePart_my(data, E, L, L_inv, x, y, dt, dir, order=1, limiter=False):
 
         if dir == 'X':
             x_shifted = x - shift
+            # Interpolate along X for each fixed Y (operate on columns along the first axis)
             for j in range(ny):
-                Values[j, :] = Newton_my(x, Values[j, :], x_shifted, order, limiter)
+                Values[:, j] = Newton_my(x, Values[:, j], x_shifted, order, limiter)
 
         if dir == 'Y':
             y_shifted = y - shift
-            for j in range(nx):
-                Values[:, j] = Newton_my(y, Values[:, j], y_shifted, order, limiter)
+            # Interpolate along Y for each fixed X (operate on rows along the second axis)
+            for i_x in range(nx):
+                Values[i_x, :] = Newton_my(y, Values[i_x, :], y_shifted, order, limiter)
 
         V_interpolated[:, :, i] = np.copy(Values)
 

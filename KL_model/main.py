@@ -23,22 +23,23 @@ def initial_conditions(mesh):
     Returns: numpy array of shape (Nx, Ny, 10) with initial conditions
     """
 
-    R = 10
-    A = 100
-    t_ = np.linspace(0, 2 * np.pi, 100)
+    # R = 10
+    # A = 100
+    # t_ = np.linspace(0, 2 * np.pi, 100)
 
-    points = np.array([[np.round(R * np.cos(t) + 100), np.round(R * np.sin(t) + 100)] for t in t_])
-    velocities = np.array([[A * np.cos(t), A * np.sin(t)] for t in t_])
+    # points = np.array([[np.round(R * np.cos(t) + 100), np.round(R * np.sin(t) + 100)] for t in t_])
+    # velocities = np.array([[A * np.cos(t), A * np.sin(t)] for t in t_])
 
-    for i in range(len(points)):
-        mesh[int(points[i, 0]), int(points[i, 1]), 0] = velocities[i, 0]
-        mesh[int(points[i, 0]), int(points[i, 1]), 1] = velocities[i, 1]
+    # for i in range(len(points)):
+    #     mesh[int(points[i, 0]), int(points[i, 1]), 0] = velocities[i, 0]
+    #     mesh[int(points[i, 0]), int(points[i, 1]), 1] = velocities[i, 1]
 
 
     # Example of initial conditions
     # mesh[99, 100, 2] = 100 # Wx
     # mesh[101, 100, 3] = -100 # Wy
-    # mesh[100, 99, 0] = 100 # Vx
+    mesh[99:101, 99:101, 0] = 100 # Vx
+    # mesh[100, 99, 0] = 100
     # mesh[100, 101, 1] = -100 # Vy
 
     return mesh
@@ -123,7 +124,7 @@ def run_simulation(mesh, steps = 1000, snapshot_step = 2, dt = 1e-6, method = "L
 from time import time
 
 t0 = time()
-mesh = run_simulation(mesh, steps = 100, snapshot_step = 2, dt = 1e-6, method = "Lax-Frid", filename = "test")
+mesh = run_simulation(mesh, steps = 100, snapshot_step = 2, dt = 1e-6, method = "CXM", filename = "CXM_Vx")
 t1 = time()
 
 print(f"Time taken   : {t1-t0:.{2}f} sec")
